@@ -2,6 +2,7 @@ import { type Request, type Response } from "express";
 import zod from "zod";
 import { prisma } from "../config/prisma.js";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 
 export const registerUser = async (req: Request, res: Response) => {
   try {
@@ -11,7 +12,7 @@ export const registerUser = async (req: Request, res: Response) => {
     // Validate user input with zod
     const registerUserSchema = zod.object({
       name: zod.string().min(1, "Name is required"),
-      email: zod.string().email("Invalid email address"),
+      email: zod.email("Invalid email address"),
       password: zod
         .string()
         .min(6, "Password must be at least 6 characters long"),
@@ -64,6 +65,68 @@ export const registerUser = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error("Error registering user:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const loginUser = async (req: Request, res: Response) => {
+  try {
+    // Extract email and password from the request body
+    const { email, password } = req.body;
+
+    // Validate user input with zod
+    const loginUserSchema = zod.object({
+      email: zod.email("Invalid email address"),
+      password: zod.string().min(1, "Password is required"),
+    });
+
+    const validationResult = loginUserSchema.safeParse(req.body);
+
+    if (!validationResult.success) {
+      return res.status(422).json(zod.treeifyError(validationResult.error));
+    }
+
+    // Check if user exists in the database
+    const user = await prisma.user.findUnique({
+      where: {
+        email: validationResult.data.email,
+      },
+    });
+
+    if (!user) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    // Compare provided password with the hashed password in the database
+    const isPasswordValid = await bcrypt.compare(
+      validationResult.data.password,
+      user.password,
+    );
+
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    // If authentication is successful, generate a JWT token
+    const token = jwt.sign(
+      {
+        userId: user.id,
+        email: user.email,
+        role: user.role,
+      },
+      process.env.JWT_SECRET!,
+      {
+        expiresIn: "1h",
+      },
+    );
+
+    // Respond with success message and the JWT token
+    res.status(200).json({
+      message: "Login successful",
+      token,
+    });
+  } catch (error) {
+    console.error("Error logging in user:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 };

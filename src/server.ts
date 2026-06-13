@@ -1,6 +1,11 @@
 import express from "express";
 import authRoutes from "./routes/authRoutes.js";
 
+// Validate required environment variables
+if (!process.env.JWT_SECRET) {
+  throw new Error("JWT_SECRET environment variable is required");
+}
+
 // Create an instance of the express application
 const app = express();
 const port = process.env.PORT || 3000;
