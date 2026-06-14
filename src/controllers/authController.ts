@@ -3,6 +3,7 @@ import zod from "zod";
 import { prisma } from "../config/prisma.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import type { AuthenticateRequest } from "../middlewares/authMiddleware.js";
 
 export const registerUser = async (req: Request, res: Response) => {
   try {
@@ -127,6 +128,39 @@ export const loginUser = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error("Error logging in user:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const getMe = async (req: AuthenticateRequest, res: Response) => {
+  // Get the user id from the req.user
+  if (!req.user || typeof req.user === "string") {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const { userId } = req.user as { userId: string };
+
+  // Fetch the user details from the database using the user id
+  try {
+    const user = await prisma.user.findUnique({
+      where: {
+        id: userId,
+      },
+      select: {
+        name: true,
+        email: true,
+        role: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Send the user details in the response(without the password)
+    res.status(200).json({ user });
+  } catch (error) {
+    console.error("Error fetching user details:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 };

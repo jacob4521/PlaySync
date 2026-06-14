@@ -1,5 +1,6 @@
 import express from "express";
 import authRoutes from "./routes/authRoutes.js";
+import { authenticateToken } from "./middlewares/authMiddleware.js";
 
 // Validate required environment variables
 if (!process.env.JWT_SECRET) {
