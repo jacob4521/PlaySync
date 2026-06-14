@@ -48,25 +48,30 @@ model User {
   updatedAt DateTime @updatedAt
 
   // Relations
-  arena            Arena[]
+  arenas           Arena[]
   bookings         Booking[]
   paymentsMade     Payment[] @relation("PlayerPayments")
   paymentsReceived Payment[] @relation("OwnerPayments")
 }
 
 model Arena {
-  id          String  @id @default(cuid())
-  name        String
-  location    String
+  id   String @id @default(cuid())
+  name String
+
   description String?
+
+  address   String
+  latitude  Float
+  longitude Float
+
+  // Relations
+  owner   User   @relation(fields: [ownerId], references: [id])
+  ownerId String
+
+  courts Court[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  // Relations
-  owner   User    @relation(fields: [ownerId], references: [id])
-  ownerId String
-  courts  Court[]
 }
 
 model Court {
@@ -75,13 +80,13 @@ model Court {
   sportType    SportType
   pricePerHour Float
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
   // Relations
   arena    Arena     @relation(fields: [arenaId], references: [id])
   arenaId  String
   bookings Booking[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Booking {
@@ -92,9 +97,6 @@ model Booking {
   status      BookingStatus @default(PENDING)
   totalAmount Float
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
   // Relations
   user      User     @relation(fields: [playerId], references: [id])
   playerId  String
@@ -102,6 +104,9 @@ model Booking {
   courtId   String
   payment   Payment? @relation(fields: [paymentId], references: [id])
   paymentId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Payment {
@@ -111,9 +116,6 @@ model Payment {
   transactionId String?       @unique
   booking       Booking[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
   // Relation to User (Player)
   player   User   @relation("PlayerPayments", fields: [playerId], references: [id])
   playerId String
@@ -121,4 +123,7 @@ model Payment {
   // Relation to Arena (Owner)
   owner   User   @relation("OwnerPayments", fields: [ownerId], references: [id])
   ownerId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
