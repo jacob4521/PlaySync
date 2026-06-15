@@ -1,4 +1,4 @@
-import { type Response } from "express";
+import { type Request, type Response } from "express";
 import type { AuthenticateRequest } from "../middlewares/authMiddleware.js";
 import zod from "zod";
 import { prisma } from "../config/prisma.js";
@@ -60,6 +60,59 @@ export const createArena = async (req: AuthenticateRequest, res: Response) => {
     });
   } catch (error) {
     console.error("Error creating arena:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const getArenas = async (req: Request, res: Response) => {
+  try {
+    // Get the query parameters lat, lon, radius and the pagination parameters page and limit
+    const page = req.query.page ? parseInt(req.query.page as string) : 1;
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+
+    const lat = req.query.lat ? parseFloat(req.query.lat as string) : undefined;
+    const lon = req.query.lon ? parseFloat(req.query.lon as string) : undefined;
+    const radius = req.query.radius
+      ? parseFloat(req.query.radius as string)
+      : 10;
+
+    if (!lat || !lon) {
+      // Return all the arenas if the latitude, longitude, or radius is not provided with pagination
+      const arenas = await prisma.arena.findMany({
+        skip: (page - 1) * limit,
+        take: limit,
+
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          address: true,
+          latitude: true,
+          longitude: true,
+        },
+      });
+      console.log(arenas);
+
+      return res.status(200).json({ arenas });
+    } else if (lat && lon && radius) {
+      // Return the nearest arenas within the provided radius
+
+      const offset = (page - 1) * limit;
+
+      const arenas = await prisma.$queryRaw`
+        SELECT id, name, description, address, latitude, longitude, 
+          ( 6371 * acos( cos( radians(${lat}) ) * cos( radians( latitude ) ) * cos( radians( longitude ) - radians(${lon}) ) + sin( radians(${lat}) ) * sin( radians( latitude ) ) ) ) AS distance
+        FROM "Arena"
+        WHERE ( 6371 * acos( cos( radians(${lat}) ) * cos( radians( latitude ) ) * cos( radians( longitude ) - radians(${lon}) ) + sin( radians(${lat}) ) * sin( radians( latitude ) ) ) ) <= ${radius}
+        ORDER BY distance ASC
+        LIMIT ${limit}
+        OFFSET ${offset}
+      `;
+
+      return res.status(200).json({ arenas });
+    }
+  } catch (error) {
+    console.error("Error fetching arenas:", error);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
