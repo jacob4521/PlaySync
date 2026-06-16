@@ -135,7 +135,7 @@ export const getAvailability = async (req: Request, res: Response) => {
 
     const endOfDay = new Date(date);
     console.log(endOfDay);
-    
+
     endOfDay.setUTCHours(23, 59, 59, 999);
 
     // 4. Database Query
@@ -157,6 +157,60 @@ export const getAvailability = async (req: Request, res: Response) => {
     return res.status(200).json(bookings);
   } catch (error) {
     console.error("Error fetching availability:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const getBookingsByPlayerId = async (
+  req: AuthenticateRequest,
+  res: Response,
+) => {
+  try {
+    // Get the playerId as userId from the request object
+    if (!req.user || typeof req.user === "string") {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { userId } = req.user as { userId: string };
+
+    // Fetch the bookings from the database using prisma sorted in the descending order of the createdAt field and include the court details in the response
+    const bookings = await prisma.booking.findMany({
+      where: {
+        playerId: userId,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      select: {
+        id: true,
+        date: true,
+        startTime: true,
+        endTime: true,
+        status: true,
+        totalAmount: true,
+
+        court: {
+          select: {
+            id: true,
+            name: true,
+
+            arena: {
+              select: {
+                id: true,
+                name: true,
+                latitude: true,
+                longitude: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Return the bookings in the response
+    return res.status(200).json(bookings);
+  } catch (error) {
+    console.error("Error fetching bookings:", error);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
