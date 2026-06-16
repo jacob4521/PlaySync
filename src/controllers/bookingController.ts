@@ -1,4 +1,4 @@
-import { type Response } from "express";
+import { type Response, type Request } from "express";
 import type { AuthenticateRequest } from "../middlewares/authMiddleware.js";
 import zod from "zod";
 import { prisma } from "../config/prisma.js";
@@ -106,6 +106,57 @@ export const createBooking = async (
     return res.status(201).json(booking);
   } catch (error) {
     console.error("Error creating booking:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const getAvailability = async (req: Request, res: Response) => {
+  try {
+    // 1. Create the Zod schema for req.query
+    const availabilityQuerySchema = zod.object({
+      courtId: zod.cuid2(),
+      date: zod.coerce.date(),
+    });
+
+    // 2. Validate req.query using safeParse
+
+    const validationResult = availabilityQuerySchema.safeParse(req.query);
+    if (!validationResult.success) {
+      return res.status(422).json(zod.treeifyError(validationResult.error));
+    }
+
+    // 3. Extract validated data
+    const { courtId, date } = validationResult.data;
+
+    const startOfDay = new Date(date);
+    console.log(startOfDay);
+
+    startOfDay.setUTCHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(date);
+    console.log(endOfDay);
+    
+    endOfDay.setUTCHours(23, 59, 59, 999);
+
+    // 4. Database Query
+    const bookings = await prisma.booking.findMany({
+      where: {
+        courtId: courtId,
+        startTime: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+      },
+      select: {
+        startTime: true,
+        endTime: true,
+      },
+    });
+
+    // 5. Return the data (අපි මේක ඊළඟට ලියමු)
+    return res.status(200).json(bookings);
+  } catch (error) {
+    console.error("Error fetching availability:", error);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
