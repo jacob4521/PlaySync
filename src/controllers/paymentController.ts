@@ -1,4 +1,4 @@
-import type { Response } from "express";
+import type { Response, Request } from "express";
 import type { AuthenticateRequest } from "../middlewares/authMiddleware.js";
 import zod from "zod";
 import { prisma } from "../config/prisma.js";
@@ -88,4 +88,91 @@ export const checkoutSession = async (
     console.error(error);
     return res.status(500).json({ error: "Internal server error" });
   }
+};
+
+export const handleWebhook = async (req: Request, res: Response) => {
+  // Get the Stripe signature from the request headers
+  const sig = req.headers["stripe-signature"];
+
+  // Check if the signature is present
+  if (!sig) {
+    return res.status(400).send("Missing Stripe signature");
+  }
+
+  // Get the webhook secret from the environment variables
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET as string;
+
+  let event: Stripe.Event;
+
+  // Verify the webhook signature and construct the event
+  try {
+    event = stripeClient.webhooks.constructEvent(
+      req.body,
+      sig,
+      webhookSecret as string,
+    );
+  } catch (error: any) {
+    console.log(`Webhook signature verification failed.`, error.message);
+    return res.status(400).send(`Webhook Error: ${error.message}`);
+  }
+
+  // Handle the event
+  switch (event.type) {
+    case "checkout.session.completed": {
+      const session = event.data.object as Stripe.Checkout.Session;
+
+      if (session.payment_status !== "paid") {
+        console.log("Payment not completed yet. Ignoring...");
+        break;
+      }
+
+      const bookingId = session.metadata?.bookingId;
+
+      if (!bookingId) {
+        console.error("Booking ID is missing in the session metadata");
+        break;
+      }
+
+      try {
+        const existingBooking = await prisma.booking.findUnique({
+          where: {
+            id: bookingId,
+          },
+        });
+
+        if (!existingBooking) {
+          console.error(`Booking with ID ${bookingId} not found in database`);
+          break;
+        }
+
+        if (existingBooking.status === "CONFIRMED") {
+          console.log(
+            `Booking with ID ${bookingId} is already confirmed. Ignoring...`,
+          );
+          break;
+        }
+
+        await prisma.booking.update({
+          where: {
+            id: bookingId,
+          },
+          data: {
+            status: "CONFIRMED",
+          },
+        });
+
+        console.log(`Successfully confirmed booking: ${bookingId}`);
+      } catch (dbError) {
+        console.error("Database error during webhook processing:", dbError);
+        return res.status(500).send("Internal Server Error");
+      }
+
+      break;
+    }
+
+    default:
+      console.log(`Unhandled event type ${event.type}`);
+  }
+
+  return res.status(200).json({ received: true });
 };

@@ -13,6 +13,9 @@ if (!process.env.JWT_SECRET) {
 const app = express();
 const port = process.env.PORT || 3000;
 
+// Use the payment routes for handling payment-related endpoints
+app.use("/payments", paymentRoutes);
+
 app.use(express.json()); // Add JSON body parser for POST requests
 
 app.get("/", (req, res) => {
@@ -22,7 +25,6 @@ app.get("/", (req, res) => {
 app.use("/auth", authRoutes);
 app.use("/arenas", arenaRoutes);
 app.use("/bookings", bookingRoutes);
-app.use("/payments", paymentRoutes);
 
 // Start and listen on the port
 app.listen(port, () => {
