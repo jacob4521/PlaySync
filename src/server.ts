@@ -3,6 +3,7 @@ import authRoutes from "./routes/authRoutes.js";
 import arenaRoutes from "./routes/arenaRoutes.js";
 import bookingRoutes from "./routes/bookingRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
+import aiRoutes from "./routes/aiRoutes.js";
 
 // Validate required environment variables
 if (!process.env.JWT_SECRET) {
@@ -25,6 +26,7 @@ app.get("/", (req, res) => {
 app.use("/auth", authRoutes);
 app.use("/arenas", arenaRoutes);
 app.use("/bookings", bookingRoutes);
+app.use("/ai", aiRoutes);
 
 // Start and listen on the port
 app.listen(port, () => {
