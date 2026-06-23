@@ -32,9 +32,12 @@ export const askAIAssistantProtected = async (
   try {
     // Get the prompt prompt
     const userPrompt = req.body.prompt;
+
     if (!userPrompt || userPrompt.trim() === "") {
       return res.status(400).json({ error: "Invalid or missing prompt." });
     }
+
+    const interactionId = req.body.interactionId;
 
     // Extract user information from the authenticated request
     if (!req.user || typeof req.user === "string") {
@@ -42,19 +45,18 @@ export const askAIAssistantProtected = async (
     }
 
     const userId = req.user.userId;
-    const chatHistory = req.body.chatHistory || [];
-    if (!userId || !chatHistory) {
-      return res.status(400).json({ error: "Missing user information." });
-    }
 
-    // Send the prompt, chatHistory and userId to the Python AI server using Axios
+    // Send the prompt and userId to the Python AI server using Axios
     const pythonResponse = await axios.post(
-      `http://127.0.0.1:8000/ai/assistant/protected/${userId}`,
-      { prompt: userPrompt, chatHistory, userId },
+      `http://127.0.0.1:8000/ai/assistant/protected`,
+      { prompt: userPrompt, interactionId, userId },
     );
 
     // return the response back to the client
-    res.status(200).json({ reply: pythonResponse.data.message });
+    res.status(200).json({
+      reply: pythonResponse.data.message,
+      interactionId: pythonResponse.data.interactionId,
+    });
   } catch (error) {
     console.error("Python AI Server Error:", error);
     res.status(500).json({ error: "AI Server is currently unreachable." });
