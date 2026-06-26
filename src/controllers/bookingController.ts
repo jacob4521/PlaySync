@@ -61,13 +61,11 @@ export const createBooking = async (
         courtId: courtId,
         date: date,
 
-        // Overlap Conditions දෙක
+        // Overlap Conditions
         startTime: {
-          // [ඔයාගේ කෝඩ් එක: අලුත් endTime එකට වඩා අඩුයි කියලා (lt) ලියන්න]
           lt: endTime,
         },
         endTime: {
-          // [ඔයාගේ කෝඩ් එක: අලුත් startTime එකට වඩා වැඩියි කියලා (gt) ලියන්න]
           gt: startTime,
         },
       },
