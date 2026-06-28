@@ -101,6 +101,18 @@ export const createBooking = async (
         totalAmount,
       },
     });
+
+    const io = req.app.get("io");
+
+    const roomName = `court_${courtId}`;
+
+    // Emit the event to the specific room to update the frontend
+    io.to(roomName).emit("booking_updated", {
+      message: "This specific court was updated!",
+      courtId: courtId,
+      date: req.body.date,
+    });
+
     return res.status(201).json(booking);
   } catch (error) {
     console.error("Error creating booking:", error);

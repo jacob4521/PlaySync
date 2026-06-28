@@ -5,6 +5,8 @@ import bookingRoutes from "./routes/bookingRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
 import aiRoutes from "./routes/aiRoutes.js";
 import internalRoutes from "./routes/internalRoutes.js";
+import { createServer } from "http";
+import { Server } from "socket.io";
 
 // Validate required environment variables
 if (!process.env.JWT_SECRET) {
@@ -30,7 +32,34 @@ app.use("/bookings", bookingRoutes);
 app.use("/ai", aiRoutes);
 app.use("/internal", internalRoutes);
 
-// Start and listen on the port
-app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`);
+const httpServer = createServer(app);
+
+const io = new Server(httpServer, {
+  cors: {
+    origin: "http://localhost:5137",
+    methods: ["GET", "POST"],
+  },
+});
+
+// Make io accessible throughout the application
+app.set("io", io);
+
+io.on("connection", (socket) => {
+  console.log(`User Connected: ${socket.id}`);
+
+  socket.on("join_court", (data: { courtId: string }) => {
+    const roomName = `court_${data.courtId}`;
+
+    socket.join(roomName);
+
+    console.log(`User [${socket.id}] joined Room: ${roomName}`);
+  });
+
+  socket.on("disconnect", () => {
+    console.log(`User Disconnected: ${socket.id}`);
+  });
+});
+
+httpServer.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
 });
